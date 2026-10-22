@@ -1,0 +1,27 @@
+{
+  "config": {
+    "bot_token": "YOUR_BOT_TOKEN_HERE",
+    "owner_telegram_id": 123456789,
+    "uid_pass_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
+    "access_token_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
+    "servers": [
+      "IND",
+      "BD",
+      "BR",
+      "NA",
+      "SG"
+    ],
+    "github_token": "",
+    "github_repo": "",
+    "github_branch": "main",
+    "github_paths": {
+      "IND": "tokens_ind.json",
+      "BD": "tokens_bd.json"
+    },
+    "timer_interval_hours": 6,
+    "like_api_url": "https://example.com/like-api-service",
+    "admin_password_hash": "scrypt:32768:8:1$y5VRKDZPzTyqq0Qb$2d2c87439448a3016f2335955bdd4b7ba62ad059c1d4882d574a4b326590f2dae3b0e26f152540bbc37d09cc6a9f1678ad6a50732fc905e3840d22b8c7b526b1",
+    "mongo_uri": "mongodb://localhost:27017/telegram_bot_db"
+  },
+  "entries": []
+}

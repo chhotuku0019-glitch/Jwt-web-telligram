@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel - Token & Like Manager</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+  <!-- Login Modal / Overlay -->
+  <div id="login-overlay" class="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+      <h2 class="text-lg font-bold text-cyan-400 mb-4 text-center">Admin Authentication</h2>
+      <div class="mb-4">
+        <label class="block text-xs text-slate-400 mb-1">Admin Password</label>
+        <input type="password" id="login-password" placeholder="Enter admin password" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+      </div>
+      <button onclick="loginAdmin()" class="w-full py-3 bg-cyan-600 hover:bg-cyan-500 font-bold text-sm text-white rounded-xl shadow-lg transition">
+        Login to Dashboard
+      </button>
+      <p id="login-error" class="text-xs text-red-400 text-center mt-3 hidden"></p>
+    </div>
+  </div>
+
+  <!-- Main Admin Interface -->
+  <div id="admin-app" class="max-w-4xl mx-auto p-4 md:p-8 hidden">
+    <header class="flex flex-col md:flex-row justify-between items-center pb-6 border-b border-slate-800 mb-8 gap-4">
+      <div>
+        <h1 class="text-2xl font-black text-cyan-400 tracking-wider">Admin Dashboard</h1>
+        <p class="text-xs text-slate-400">Manage bot settings, tokens, servers, and automated GitHub sync.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="downloadBackup()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold rounded-xl shadow transition">Backup DB</button>
+        <label class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold rounded-xl shadow transition cursor-pointer">
+          Restore DB
+          <input type="file" id="restore-file" onchange="restoreBackup(event)" class="hidden">
+        </label>
+      </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow">
+        <p class="text-xs text-slate-400 uppercase">Total Entries</p>
+        <h3 id="stat-total" class="text-2xl font-black text-cyan-400 mt-1">0</h3>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow">
+        <p class="text-xs text-slate-400 uppercase">UID + Password</p>
+        <h3 id="stat-uidpass" class="text-2xl font-black text-emerald-400 mt-1">0</h3>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow">
+        <p class="text-xs text-slate-400 uppercase">Access Tokens</p>
+        <h3 id="stat-tokens" class="text-2xl font-black text-purple-400 mt-1">0</h3>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow">
+        <p class="text-xs text-slate-400 uppercase">Timer Interval</p>
+        <h3 id="stat-timer" class="text-2xl font-black text-amber-400 mt-1">6h</h3>
+      </div>
+    </div>
+
+    <!-- Settings Form -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+      <h2 class="text-base font-bold text-slate-200 border-b border-slate-800 pb-3">Bot & API Configuration</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Telegram Bot Token</label>
+          <input type="text" id="cfg-bot-token" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Owner Telegram ID</label>
+          <input type="number" id="cfg-owner-id" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">UID + Password API URL</label>
+          <input type="text" id="cfg-uidpass-api" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Access Token API URL</label>
+          <input type="text" id="cfg-token-api" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">GitHub Repo (owner/repo)</label>
+          <input type="text" id="cfg-gh-repo" placeholder="username/repo" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">GitHub Branch</label>
+          <input type="text" id="cfg-gh-branch" value="main" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">GitHub Token</label>
+          <input type="password" id="cfg-gh-token" placeholder="ghp_..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Timer Interval (Hours)</label>
+          <input type="number" id="cfg-timer-interval" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Like API URL</label>
+          <input type="text" id="cfg-like-api" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Servers & GitHub File Paths (JSON mapping or comma-separated servers)</label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] text-slate-500 mb-1">Servers (comma separated)</label>
+            <input type="text" id="cfg-servers" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-500 mb-1">GitHub Paths JSON (e.g. {"IND": "tokens_ind.json"})</label>
+            <input type="text" id="cfg-gh-paths" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">New Admin Password (leave blank to keep current)</label>
+        <input type="password" id="cfg-admin-password" placeholder="New password" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+      </div>
+
+      <div class="flex justify-end pt-4">
+        <button onclick="saveConfig()" class="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 font-bold text-sm text-white rounded-xl shadow-lg transition">
+          Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loginAdmin() {
+      const password = document.getElementById('login-password').value;
+      const errBox = document.getElementById('login-error');
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/admin_login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          document.getElementById('login-overlay').classList.add('hidden');
+          document.getElementById('admin-app').classList.remove('hidden');
+          loadDashboardData();
+        } else {
+          errBox.innerText = data.error || 'Login failed';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.innerText = 'Network error: ' + err.message;
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    async function loadDashboardData() {
+      try {
+        const [statsRes, configRes] = await Promise.all([
+          fetch('/api/stats'),
+          fetch('/api/config')
+        ]);
+        const stats = await statsRes.json();
+        const config = await configRes.json();
+
+        document.getElementById('stat-total').innerText = stats.total_entries;
+        document.getElementById('stat-uidpass').innerText = stats.uid_pass_count;
+        document.getElementById('stat-tokens').innerText = stats.access_token_count;
+        document.getElementById('stat-timer').innerText = (config.timer_interval_hours || 6) + 'h';
+
+        document.getElementById('cfg-bot-token').value = config.bot_token || '';
+        document.getElementById('cfg-owner-id').value = config.owner_telegram_id || '';
+        document.getElementById('cfg-uidpass-api').value = config.uid_pass_api_url || '';
+        document.getElementById('cfg-token-api').value = config.access_token_api_url || '';
+        document.getElementById('cfg-gh-repo').value = config.github_repo || '';
+        document.getElementById('cfg-gh-branch').value = config.github_branch || 'main';
+        document.getElementById('cfg-gh-token').value = config.github_token || '';
+        document.getElementById('cfg-timer-interval').value = config.timer_interval_hours || 6;
+        document.getElementById('cfg-like-api').value = config.like_api_url || '';
+        document.getElementById('cfg-servers').value = (config.servers || []).join(', ');
+        document.getElementById('cfg-gh-paths').value = JSON.stringify(config.github_paths || {});
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err);
+      }
+    }
+
+    async function saveConfig() {
+      let ghPaths = {};
+      try {
+        ghPaths = JSON.parse(document.getElementById('cfg-gh-paths').value || '{}');
+      } catch (e) {
+        alert('Invalid GitHub Paths JSON format.');
+        return;
+      }
+
+      const servers = document.getElementById('cfg-servers').value.split(',').map(s => s.trim()).filter(Boolean);
+      const newPassword = document.getElementById('cfg-admin-password').value;
+
+      const payload = {
+        bot_token: document.getElementById('cfg-bot-token').value,
+        owner_telegram_id: parseInt(document.getElementById('cfg-owner-id').value) || 0,
+        uid_pass_api_url: document.getElementById('cfg-uidpass-api').value,
+        access_token_api_url: document.getElementById('cfg-token-api').value,
+        github_repo: document.getElementById('cfg-gh-repo').value,
+        github_branch: document.getElementById('cfg-gh-branch').value,
+        github_token: document.getElementById('cfg-gh-token').value,
+        timer_interval_hours: parseInt(document.getElementById('cfg-timer-interval').value) || 6,
+        like_api_url: document.getElementById('cfg-like-api').value,
+        servers: servers,
+        github_paths: ghPaths
+      };
+
+      if (newPassword) {
+        payload.admin_password = newPassword;
+      }
+
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('Configuration saved successfully!');
+          loadDashboardData();
+        } else {
+          alert('Failed to save configuration.');
+        }
+      } catch (err) {
+        alert('Error saving configuration: ' + err.message);
+      }
+    }
+
+    function downloadBackup() {
+      window.location.href = '/api/backup';
+    }
+
+    async function restoreBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/restore', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('Database restored successfully!');
+          loadDashboardData();
+        } else {
+          alert('Restore failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Restore error: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

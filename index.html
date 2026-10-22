@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telegram Mini App - Free Fire Token Manager</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+  <div class="max-w-md mx-auto w-full p-4 flex-1 flex flex-col justify-between">
+    <div>
+      <!-- Header -->
+      <header class="text-center py-6">
+        <h1 class="text-2xl font-black tracking-wider text-cyan-400 uppercase">Token & Like Manager</h1>
+        <p class="text-xs text-slate-400 mt-1" id="user-greeting">Connecting to Telegram...</p>
+      </header>
+
+      <!-- Navigation Tabs -->
+      <div class="grid grid-cols-3 gap-2 mb-6 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+        <button onclick="switchTab('uid')" id="tab-uid" class="py-2.5 text-xs font-bold rounded-lg transition bg-cyan-600 text-white shadow">UID + Pass</button>
+        <button onclick="switchTab('token')" id="tab-token" class="py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white">Token</button>
+        <button onclick="switchTab('like')" id="tab-like" class="py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white">Like API</button>
+      </div>
+
+      <!-- Tab Content: UID + Password -->
+      <div id="section-uid" class="space-y-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl">
+          <h2 class="text-sm font-bold text-cyan-300 mb-3 uppercase">Submit UID + Password</h2>
+          
+          <div class="mb-3">
+            <label class="block text-xs text-slate-400 mb-1">Server</label>
+            <select id="uid-server" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+              <option value="IND">IND</option>
+              <option value="BD">BD</option>
+              <option value="BR">BR</option>
+              <option value="NA">NA</option>
+              <option value="SG">SG</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-xs text-slate-400 mb-1">UID</label>
+            <input type="text" id="uid-input" placeholder="e.g. 123456789" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-xs text-slate-400 mb-1">Password</label>
+            <input type="password" id="password-input" placeholder="Account password" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-xs text-slate-400 mb-1">Or Bulk JSON List (Optional)</label>
+            <textarea id="uid-bulk" placeholder='[{"uid":"123","password":"abc"},{"uid":"456","password":"def"}]' rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"></textarea>
+          </div>
+
+          <button onclick="submitUidPass()" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-bold text-sm text-white rounded-xl shadow-lg transition active:scale-95">
+            Submit UID + Password
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Content: Access Token -->
+      <div id="section-token" class="space-y-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl">
+          <h2 class="text-sm font-bold text-emerald-300 mb-3 uppercase">Submit Access Token</h2>
+          
+          <div class="mb-3">
+            <label class="block text-xs text-slate-400 mb-1">Server</label>
+            <select id="token-server" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="IND">IND</option>
+              <option value="BD">BD</option>
+              <option value="BR">BR</option>
+              <option value="NA">NA</option>
+              <option value="SG">SG</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-xs text-slate-400 mb-1">Access Token</label>
+            <textarea id="token-input" placeholder="Paste access token here..." rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"></textarea>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-xs text-slate-400 mb-1">Or Bulk JSON List (Optional)</label>
+            <textarea id="token-bulk" placeholder='[{"access_token":"token1"},{"access_token":"token2"}]' rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500"></textarea>
+          </div>
+
+          <button onclick="submitToken()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 font-bold text-sm text-white rounded-xl shadow-lg transition active:scale-95">
+            Submit Access Token
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Content: Get Like API -->
+      <div id="section-like" class="space-y-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl text-center py-8">
+          <h2 class="text-sm font-bold text-purple-300 mb-3 uppercase">Unlock Like API</h2>
+          <p class="text-xs text-slate-400 mb-6 px-4">Upload an access token or uid+password (account level 8+) to unlock the Like API endpoint.</p>
+          
+          <button onclick="checkLikeApi()" class="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 font-bold text-sm text-white rounded-xl shadow-lg transition active:scale-95 mb-4">
+            Check Unlock Status
+          </button>
+
+          <div id="like-result" class="text-xs p-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hidden">
+            <!-- Results injected here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Banner -->
+      <div id="result-box" class="mt-4 p-3 rounded-xl bg-slate-800 border border-slate-700 text-xs text-center hidden"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-[10px] text-slate-500">
+      Telegram WebApp v1.0 • Secure Token System
+    </footer>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      if (tg.setHeaderColor) tg.setHeaderColor('#0f172a');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#0f172a');
+
+      const user = tg.initDataUnsafe?.user;
+      if (user) {
+        document.getElementById('user-greeting').innerText = `Hello, ${user.first_name || 'User'}!`;
+      }
+    }
+
+    function switchTab(tab) {
+      document.getElementById('section-uid').classList.add('hidden');
+      document.getElementById('section-token').classList.add('hidden');
+      document.getElementById('section-like').classList.add('hidden');
+
+      document.getElementById('tab-uid').className = "py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white";
+      document.getElementById('tab-token').className = "py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white";
+      document.getElementById('tab-like').className = "py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white";
+
+      if (tab === 'uid') {
+        document.getElementById('section-uid').classList.remove('hidden');
+        document.getElementById('tab-uid').className = "py-2.5 text-xs font-bold rounded-lg transition bg-cyan-600 text-white shadow";
+      } else if (tab === 'token') {
+        document.getElementById('section-token').classList.remove('hidden');
+        document.getElementById('tab-token').className = "py-2.5 text-xs font-bold rounded-lg transition bg-emerald-600 text-white shadow";
+      } else if (tab === 'like') {
+        document.getElementById('section-like').classList.remove('hidden');
+        document.getElementById('tab-like').className = "py-2.5 text-xs font-bold rounded-lg transition bg-purple-600 text-white shadow";
+      }
+      document.getElementById('result-box').classList.add('hidden');
+    }
+
+    function showResult(text, isError = false) {
+      const box = document.getElementById('result-box');
+      box.innerText = text;
+      box.className = `mt-4 p-3 rounded-xl border text-xs text-center ${isError ? 'bg-red-950 border-red-800 text-red-200' : 'bg-emerald-950 border-emerald-800 text-emerald-200'}`;
+      box.classList.remove('hidden');
+    }
+
+    async function submitUidPass() {
+      const server = document.getElementById('uid-server').value;
+      const uid = document.getElementById('uid-input').value.trim();
+      const password = document.getElementById('password-input').value.trim();
+      const bulkText = document.getElementById('uid-bulk').value.trim();
+
+      let items = [];
+      if (bulkText) {
+        try {
+          items = JSON.parse(bulkText);
+        } catch (e) {
+          showResult('Invalid JSON format in bulk input.', true);
+          return;
+        }
+      } else if (uid && password) {
+        items = [{ uid, password }];
+      } else {
+        showResult('Please enter UID & Password or bulk JSON.', true);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/submit_uidpass', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initData: tg?.initData || '',
+            server,
+            items
+          })
+        });
+        const data = await res.json();
+        showResult(`Added: ${data.added} | Duplicate: ${data.duplicate} | Invalid: ${data.invalid}`);
+      } catch (err) {
+        showResult('Submission failed: ' + err.message, true);
+      }
+    }
+
+    async function submitToken() {
+      const server = document.getElementById('token-server').value;
+      const token = document.getElementById('token-input').value.trim();
+      const bulkText = document.getElementById('token-bulk').value.trim();
+
+      let items = [];
+      if (bulkText) {
+        try {
+          items = JSON.parse(bulkText);
+        } catch (e) {
+          showResult('Invalid JSON format in bulk input.', true);
+          return;
+        }
+      } else if (token) {
+        items = [{ access_token: token }];
+      } else {
+        showResult('Please enter Access Token or bulk JSON.', true);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/submit_token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initData: tg?.initData || '',
+            server,
+            items
+          })
+        });
+        const data = await res.json();
+        showResult(`Added: ${data.added} | Duplicate: ${data.duplicate} | Invalid: ${data.invalid}`);
+      } catch (err) {
+        showResult('Submission failed: ' + err.message, true);
+      }
+    }
+
+    async function checkLikeApi() {
+      const resBox = document.getElementById('like-result');
+      resBox.classList.remove('hidden');
+      resBox.innerText = 'Checking unlock status...';
+
+      try {
+        const res = await fetch('/api/get_like_api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            initData: tg?.initData || ''
+          })
+        });
+        const data = await res.json();
+        if (data.unlocked) {
+          resBox.className = 'text-xs p-3 rounded-xl bg-emerald-950 border border-emerald-800 text-emerald-200';
+          resBox.innerHTML = `<strong>Access Granted!</strong><br>Like API URL: <a href="${data.like_api_url}" target="_blank" class="underline text-cyan-300">${data.like_api_url}</a>`;
+        } else {
+          resBox.className = 'text-xs p-3 rounded-xl bg-amber-950 border border-amber-800 text-amber-200';
+          resBox.innerText = data.message;
+        }
+      } catch (err) {
+        resBox.className = 'text-xs p-3 rounded-xl bg-red-950 border border-red-800 text-red-200';
+        resBox.innerText = 'Error checking unlock status: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

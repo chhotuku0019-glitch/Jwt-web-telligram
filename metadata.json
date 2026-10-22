@@ -1,0 +1,6 @@
+{
+  "name": "Telegram Bot & Mini App System",
+  "description": "Telegram bot, Mini App, and Admin Panel with JWT token generator, auto-refresh timer, GitHub sync, and deduplication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
