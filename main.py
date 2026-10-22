@@ -15,8 +15,8 @@ app = Flask(__name__, template_folder='.')
 
 # Fallback Configuration Constants
 DEFAULT_CONFIG = {
-    "bot_token": os.environ.get("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE"),
-    "owner_telegram_id": int(os.environ.get("OWNER_TELEGRAM_ID", "123456789")),
+    "bot_token": os.environ.get("TELEGRAM_BOT_TOKEN", "8316096516:AAH6K3fhlPVPmlgHmW-DQlNkJ7Lv1fbJmpg),
+    "owner_telegram_id": int(os.environ.get("OWNER_TELEGRAM_ID", "6506909666")),
     "uid_pass_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
     "access_token_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
     "servers": ["IND", "BD", "BR", "NA", "SG"],
