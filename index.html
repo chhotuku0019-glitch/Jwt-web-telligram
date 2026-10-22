@@ -2,186 +2,862 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Telegram Mini App - Free Fire Token Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Free Fire Token & Like Hub</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      --bg: #e6ecf5;
+      --bg-dark: #dbe3ee;
+      --shadow-light: #ffffff;
+      --shadow-dark: #b8c5d6;
+      --text-main: #2d3748;
+      --text-muted: #718096;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-glow: rgba(59, 130, 246, 0.35);
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 16px 32px 16px;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Neumorphic Surfaces */
+    .neu-flat {
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      box-shadow: 8px 8px 18px var(--shadow-dark), -8px -8px 18px var(--shadow-light);
+    }
+
+    .neu-card {
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .neu-card:hover {
+      box-shadow: 9px 9px 20px var(--shadow-dark), -9px -9px 20px var(--shadow-light);
+    }
+
+    .neu-card:active {
+      transform: scale(0.97);
+    }
+
+    .neu-inset {
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      transition: var(--transition);
+    }
+
+    .neu-inset:focus {
+      box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light), 0 0 0 2px var(--accent);
+    }
+
+    .neu-btn {
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      box-shadow: 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);
+      border: none;
+      outline: none;
+      font-weight: 700;
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .neu-btn:hover {
+      box-shadow: 6px 6px 14px var(--shadow-dark), -6px -6px 14px var(--shadow-light);
+    }
+
+    .neu-btn:active, .neu-btn.pressed {
+      transform: scale(0.96);
+      box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+    }
+
+    .neu-btn-primary {
+      background: linear-gradient(135deg, #4f93f6, var(--accent));
+      color: #ffffff;
+      box-shadow: 5px 5px 14px rgba(59, 130, 246, 0.4), -5px -5px 14px var(--shadow-light);
+    }
+
+    .neu-btn-primary:hover {
+      background: linear-gradient(135deg, #4088f5, var(--accent-hover));
+      box-shadow: 6px 6px 16px rgba(59, 130, 246, 0.5), -6px -6px 16px var(--shadow-light);
+    }
+
+    .neu-btn-primary:active {
+      transform: scale(0.96);
+      box-shadow: inset 3px 3px 8px rgba(29, 78, 216, 0.6), inset -3px -3px 8px rgba(147, 197, 253, 0.3);
+    }
+
+    .neu-btn-primary:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .neu-icon-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      box-shadow: 5px 5px 11px var(--shadow-dark), -5px -5px 11px var(--shadow-light);
+      color: var(--text-main);
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+
+    /* Top User Bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .avatar-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg);
+      box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-weight: 800;
+      color: var(--accent);
+      font-size: 18px;
+    }
+
+    .avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-greeting {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .user-subtitle {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .server-badge {
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--bg);
+      box-shadow: inset 2px 2px 5px var(--shadow-dark), inset -2px -2px 5px var(--shadow-light);
+    }
+
+    /* Segmented Control / Tabs */
+    .segment-switch {
+      display: flex;
+      background: var(--bg);
+      padding: 6px;
+      border-radius: var(--radius-md);
+      box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+
+    .segment-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+    }
+
+    .segment-btn.active {
+      background: var(--bg);
+      color: var(--accent);
+      box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+    }
+
+    /* Cards Grid */
+    .cards-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-inner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .card-icon-box {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--bg);
+      box-shadow: 5px 5px 12px var(--shadow-dark), -5px -5px 12px var(--shadow-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
+    .card-body {
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .card-chevron {
+      color: var(--text-muted);
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Modal Sheet */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(230, 236, 245, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-sheet {
+      width: 100%;
+      max-width: 440px;
+      background: var(--bg);
+      border-top-left-radius: 28px;
+      border-top-right-radius: 28px;
+      box-shadow: 0 -10px 30px var(--shadow-dark), 0 -4px 15px var(--shadow-light);
+      padding: 24px;
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.open .modal-sheet {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input {
+      padding: 14px 16px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    select.form-input {
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 16px;
+      padding-right: 40px;
+    }
+
+    textarea.form-input {
+      resize: none;
+      min-height: 80px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    /* Result feedback banner */
+    .feedback-box {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+    }
+
+    .feedback-box.success {
+      color: var(--success);
+    }
+
+    .feedback-box.error {
+      color: var(--danger);
+      animation: shake 0.4s ease-in-out;
+    }
+
+    /* Shake animation */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffffff;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Checkmark SVG Animation */
+    .checkmark__circle {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 3;
+      stroke-miterlimit: 10;
+      stroke: var(--success);
+      fill: none;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .checkmark__check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: stroke 0.4s cubic-bezier(0.65, 0, 0.45, 1) 0.5s forwards;
+    }
+
+    @keyframes stroke {
+      100% { stroke-dashoffset: 0; }
+    }
+
+    /* Like API Status Card */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status-badge.locked {
+      background: #fed7d7;
+      color: #9b2c2c;
+    }
+
+    .status-badge.unlocked {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .url-copy-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+      word-break: break-all;
+      font-size: 12px;
+      color: var(--accent);
+      margin-top: 10px;
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
-  <div class="max-w-md mx-auto w-full p-4 flex-1 flex flex-col justify-between">
-    <div>
-      <!-- Header -->
-      <header class="text-center py-6">
-        <h1 class="text-2xl font-black tracking-wider text-cyan-400 uppercase">Token & Like Manager</h1>
-        <p class="text-xs text-slate-400 mt-1" id="user-greeting">Connecting to Telegram...</p>
-      </header>
-
-      <!-- Navigation Tabs -->
-      <div class="grid grid-cols-3 gap-2 mb-6 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
-        <button onclick="switchTab('uid')" id="tab-uid" class="py-2.5 text-xs font-bold rounded-lg transition bg-cyan-600 text-white shadow">UID + Pass</button>
-        <button onclick="switchTab('token')" id="tab-token" class="py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white">Token</button>
-        <button onclick="switchTab('like')" id="tab-like" class="py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white">Like API</button>
+<body>
+  <div class="app-container">
+    <!-- Top Bar -->
+    <header class="neu-flat top-bar">
+      <div class="user-info">
+        <div class="avatar-wrap" id="user-avatar">
+          <span id="user-initials">FF</span>
+        </div>
+        <div>
+          <h2 class="user-greeting" id="user-name">Hi, Warrior</h2>
+          <p class="user-subtitle">Telegram Token Hub</p>
+        </div>
       </div>
+      <div class="server-badge" id="current-server-badge">IND</div>
+    </header>
 
-      <!-- Tab Content: UID + Password -->
-      <div id="section-uid" class="space-y-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl">
-          <h2 class="text-sm font-bold text-cyan-300 mb-3 uppercase">Submit UID + Password</h2>
-          
-          <div class="mb-3">
-            <label class="block text-xs text-slate-400 mb-1">Server</label>
-            <select id="uid-server" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
-              <option value="IND">IND</option>
-              <option value="BD">BD</option>
-              <option value="BR">BR</option>
-              <option value="NA">NA</option>
-              <option value="SG">SG</option>
-            </select>
+    <!-- Main Navigation / Action Cards -->
+    <main class="cards-stack">
+      <!-- Card 1: UID + Password -->
+      <div class="neu-card" onclick="openModal('uidpass')">
+        <div class="card-inner">
+          <div class="card-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
           </div>
-
-          <div class="mb-3">
-            <label class="block text-xs text-slate-400 mb-1">UID</label>
-            <input type="text" id="uid-input" placeholder="e.g. 123456789" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+          <div class="card-body">
+            <h3 class="card-title">UID + Password</h3>
+            <p class="card-desc">Authenticate game credentials, generate JWT tokens, and auto-sync.</p>
           </div>
-
-          <div class="mb-4">
-            <label class="block text-xs text-slate-400 mb-1">Password</label>
-            <input type="password" id="password-input" placeholder="Account password" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
-          </div>
-
-          <div class="mb-4">
-            <label class="block text-xs text-slate-400 mb-1">Or Bulk JSON List (Optional)</label>
-            <textarea id="uid-bulk" placeholder='[{"uid":"123","password":"abc"},{"uid":"456","password":"def"}]' rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"></textarea>
-          </div>
-
-          <button onclick="submitUidPass()" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-bold text-sm text-white rounded-xl shadow-lg transition active:scale-95">
-            Submit UID + Password
-          </button>
+          <svg class="card-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
         </div>
       </div>
 
-      <!-- Tab Content: Access Token -->
-      <div id="section-token" class="space-y-4 hidden">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl">
-          <h2 class="text-sm font-bold text-emerald-300 mb-3 uppercase">Submit Access Token</h2>
-          
-          <div class="mb-3">
-            <label class="block text-xs text-slate-400 mb-1">Server</label>
-            <select id="token-server" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-              <option value="IND">IND</option>
-              <option value="BD">BD</option>
-              <option value="BR">BR</option>
-              <option value="NA">NA</option>
-              <option value="SG">SG</option>
-            </select>
+      <!-- Card 2: Access Token -->
+      <div class="neu-card" onclick="openModal('token')">
+        <div class="card-inner">
+          <div class="card-icon-box" style="color: #10b981;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
           </div>
-
-          <div class="mb-3">
-            <label class="block text-xs text-slate-400 mb-1">Access Token</label>
-            <textarea id="token-input" placeholder="Paste access token here..." rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"></textarea>
+          <div class="card-body">
+            <h3 class="card-title">Access Token</h3>
+            <p class="card-desc">Submit generated token string directly with automatic server verification.</p>
           </div>
-
-          <div class="mb-4">
-            <label class="block text-xs text-slate-400 mb-1">Or Bulk JSON List (Optional)</label>
-            <textarea id="token-bulk" placeholder='[{"access_token":"token1"},{"access_token":"token2"}]' rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500"></textarea>
-          </div>
-
-          <button onclick="submitToken()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 font-bold text-sm text-white rounded-xl shadow-lg transition active:scale-95">
-            Submit Access Token
-          </button>
+          <svg class="card-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
         </div>
       </div>
 
-      <!-- Tab Content: Get Like API -->
-      <div id="section-like" class="space-y-4 hidden">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-xl text-center py-8">
-          <h2 class="text-sm font-bold text-purple-300 mb-3 uppercase">Unlock Like API</h2>
-          <p class="text-xs text-slate-400 mb-6 px-4">Upload an access token or uid+password (account level 8+) to unlock the Like API endpoint.</p>
-          
-          <button onclick="checkLikeApi()" class="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 font-bold text-sm text-white rounded-xl shadow-lg transition active:scale-95 mb-4">
-            Check Unlock Status
-          </button>
+      <!-- Card 3: Get Like API -->
+      <div class="neu-card" onclick="openModal('like')">
+        <div class="card-inner">
+          <div class="card-icon-box" style="color: #8b5cf6;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+            </svg>
+          </div>
+          <div class="card-body">
+            <h3 class="card-title">Get Like API</h3>
+            <p class="card-desc">Unlocked for verified accounts with Level 8+. Check unlock status.</p>
+          </div>
+          <svg class="card-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </div>
+      </div>
+    </main>
 
-          <div id="like-result" class="text-xs p-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 hidden">
-            <!-- Results injected here -->
+    <!-- Bottom Quick Stats Card -->
+    <section class="neu-flat" style="padding: 18px 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Cloud Status</span>
+          <h4 style="font-size: 15px; font-weight: 800; color: var(--text-main); margin-top: 2px;">Synchronized with Bot</h4>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <div class="neu-btn" style="padding: 8px 12px; font-size: 11px;" onclick="fetchStats()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Sync
           </div>
         </div>
       </div>
+    </section>
+  </div>
 
-      <!-- Result Banner -->
-      <div id="result-box" class="mt-4 p-3 rounded-xl bg-slate-800 border border-slate-700 text-xs text-center hidden"></div>
+  <!-- Neumorphic Modal: UID + Password -->
+  <div class="modal-overlay" id="modal-uidpass" onclick="handleOverlayClick(event, 'modal-uidpass')">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 class="modal-title">Submit UID + Password</h3>
+        <button class="neu-icon-btn" onclick="closeModal('modal-uidpass')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Single vs Bulk Toggle -->
+      <div class="segment-switch">
+        <button class="segment-btn active" id="btn-up-single" onclick="switchInputMode('up', 'single')">Single Entry</button>
+        <button class="segment-btn" id="btn-up-bulk" onclick="switchInputMode('up', 'bulk')">Bulk JSON</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Game Server</label>
+        <select class="neu-inset form-input" id="up-server">
+          <option value="IND">IND (India)</option>
+          <option value="BD">BD (Bangladesh)</option>
+          <option value="BR">BR (Brazil)</option>
+          <option value="NA">NA (North America)</option>
+          <option value="SG">SG (Singapore)</option>
+        </select>
+      </div>
+
+      <!-- Single Mode Inputs -->
+      <div id="up-single-fields">
+        <div class="form-group">
+          <label class="form-label">Account UID</label>
+          <input type="text" class="neu-inset form-input" id="up-uid" placeholder="e.g. 1928374650">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="neu-inset form-input" id="up-password" placeholder="Account Password">
+        </div>
+      </div>
+
+      <!-- Bulk Mode Input -->
+      <div id="up-bulk-fields" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Bulk JSON Array</label>
+          <textarea class="neu-inset form-input" id="up-bulk-json" placeholder='[&#10;  {"uid": "123", "password": "abc"},&#10;  {"uid": "456", "password": "def"}&#10;]'></textarea>
+        </div>
+      </div>
+
+      <button class="neu-btn neu-btn-primary" style="width: 100%; padding: 16px; margin-top: 10px;" id="btn-submit-up" onclick="submitUidPassForm()">
+        <span class="btn-text">Authenticate & Save</span>
+      </button>
+
+      <div id="up-feedback" class="feedback-box" style="display: none;"></div>
     </div>
+  </div>
 
-    <!-- Footer -->
-    <footer class="text-center py-4 text-[10px] text-slate-500">
-      Telegram WebApp v1.0 • Secure Token System
-    </footer>
+  <!-- Neumorphic Modal: Access Token -->
+  <div class="modal-overlay" id="modal-token" onclick="handleOverlayClick(event, 'modal-token')">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 class="modal-title">Submit Access Token</h3>
+        <button class="neu-icon-btn" onclick="closeModal('modal-token')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Single vs Bulk Toggle -->
+      <div class="segment-switch">
+        <button class="segment-btn active" id="btn-at-single" onclick="switchInputMode('at', 'single')">Single Token</button>
+        <button class="segment-btn" id="btn-at-bulk" onclick="switchInputMode('at', 'bulk')">Bulk JSON</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Game Server</label>
+        <select class="neu-inset form-input" id="at-server">
+          <option value="IND">IND (India)</option>
+          <option value="BD">BD (Bangladesh)</option>
+          <option value="BR">BR (Brazil)</option>
+          <option value="NA">NA (North America)</option>
+          <option value="SG">SG (Singapore)</option>
+        </select>
+      </div>
+
+      <!-- Single Token Input -->
+      <div id="at-single-fields">
+        <div class="form-group">
+          <label class="form-label">Access Token</label>
+          <textarea class="neu-inset form-input" id="at-token" placeholder="Paste access token here..."></textarea>
+        </div>
+      </div>
+
+      <!-- Bulk Token Input -->
+      <div id="at-bulk-fields" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Bulk Tokens JSON</label>
+          <textarea class="neu-inset form-input" id="at-bulk-json" placeholder='[&#10;  {"access_token": "token1"},&#10;  {"access_token": "token2"}&#10;]'></textarea>
+        </div>
+      </div>
+
+      <button class="neu-btn neu-btn-primary" style="width: 100%; padding: 16px; margin-top: 10px;" id="btn-submit-at" onclick="submitTokenForm()">
+        <span class="btn-text">Verify & Submit</span>
+      </button>
+
+      <div id="at-feedback" class="feedback-box" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Neumorphic Modal: Get Like API -->
+  <div class="modal-overlay" id="modal-like" onclick="handleOverlayClick(event, 'modal-like')">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 class="modal-title">Like API Service</h3>
+        <button class="neu-icon-btn" onclick="closeModal('modal-like')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div style="text-align: center; padding: 12px 0 24px 0;">
+        <div class="card-icon-box" style="margin: 0 auto 16px auto; width: 68px; height: 68px; color: #8b5cf6;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+          </svg>
+        </div>
+        <h4 style="font-size: 16px; font-weight: 800; margin-bottom: 6px;">Automated Likes Endpoint</h4>
+        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; padding: 0 10px;">
+          To access the public Like API generator, you must have submitted at least one valid account reaching Level 8 or higher.
+        </p>
+      </div>
+
+      <button class="neu-btn neu-btn-primary" style="width: 100%; padding: 16px;" id="btn-check-like" onclick="checkLikeStatus()">
+        <span class="btn-text">Verify My Level & Unlock</span>
+      </button>
+
+      <div id="like-feedback" class="feedback-box" style="display: none; flex-direction: column; align-items: flex-start;"></div>
+    </div>
   </div>
 
   <script>
+    // Initialize Telegram WebApp
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
-      if (tg.setHeaderColor) tg.setHeaderColor('#0f172a');
-      if (tg.setBackgroundColor) tg.setBackgroundColor('#0f172a');
+      try {
+        // Match Telegram top bar with the neumorphic background
+        if (tg.setHeaderColor) tg.setHeaderColor('#e6ecf5');
+        if (tg.setBackgroundColor) tg.setBackgroundColor('#e6ecf5');
+      } catch (e) {
+        console.warn('Telegram color setting not supported', e);
+      }
 
+      // Populate user info from initDataUnsafe
       const user = tg.initDataUnsafe?.user;
       if (user) {
-        document.getElementById('user-greeting').innerText = `Hello, ${user.first_name || 'User'}!`;
+        const nameEl = document.getElementById('user-name');
+        nameEl.innerText = `Hi, ${user.first_name || 'Warrior'}`;
+
+        const initialsEl = document.getElementById('user-initials');
+        const first = (user.first_name || 'F')[0].toUpperCase();
+        const last = (user.last_name || '')[0]?.toUpperCase() || '';
+        initialsEl.innerText = first + last;
+
+        if (user.photo_url) {
+          const avatarWrap = document.getElementById('user-avatar');
+          avatarWrap.innerHTML = `<img src="${user.photo_url}" alt="Avatar" />`;
+        }
       }
     }
 
-    function switchTab(tab) {
-      document.getElementById('section-uid').classList.add('hidden');
-      document.getElementById('section-token').classList.add('hidden');
-      document.getElementById('section-like').classList.add('hidden');
+    // Modal Handlers
+    function openModal(id) {
+      const modal = document.getElementById(`modal-${id}`);
+      if (modal) modal.classList.add('open');
+    }
 
-      document.getElementById('tab-uid').className = "py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white";
-      document.getElementById('tab-token').className = "py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white";
-      document.getElementById('tab-like').className = "py-2.5 text-xs font-bold rounded-lg transition text-slate-300 hover:text-white";
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove('open');
+    }
 
-      if (tab === 'uid') {
-        document.getElementById('section-uid').classList.remove('hidden');
-        document.getElementById('tab-uid').className = "py-2.5 text-xs font-bold rounded-lg transition bg-cyan-600 text-white shadow";
-      } else if (tab === 'token') {
-        document.getElementById('section-token').classList.remove('hidden');
-        document.getElementById('tab-token').className = "py-2.5 text-xs font-bold rounded-lg transition bg-emerald-600 text-white shadow";
-      } else if (tab === 'like') {
-        document.getElementById('section-like').classList.remove('hidden');
-        document.getElementById('tab-like').className = "py-2.5 text-xs font-bold rounded-lg transition bg-purple-600 text-white shadow";
+    function handleOverlayClick(event, id) {
+      if (event.target.id === id) {
+        closeModal(id);
       }
-      document.getElementById('result-box').classList.add('hidden');
     }
 
-    function showResult(text, isError = false) {
-      const box = document.getElementById('result-box');
-      box.innerText = text;
-      box.className = `mt-4 p-3 rounded-xl border text-xs text-center ${isError ? 'bg-red-950 border-red-800 text-red-200' : 'bg-emerald-950 border-emerald-800 text-emerald-200'}`;
-      box.classList.remove('hidden');
+    // Input mode toggle (Single vs Bulk)
+    function switchInputMode(prefix, mode) {
+      const singleBtn = document.getElementById(`btn-${prefix}-single`);
+      const bulkBtn = document.getElementById(`btn-${prefix}-bulk`);
+      const singleFields = document.getElementById(`${prefix}-single-fields`);
+      const bulkFields = document.getElementById(`${prefix}-bulk-fields`);
+
+      if (mode === 'single') {
+        singleBtn.classList.add('active');
+        bulkBtn.classList.remove('active');
+        singleFields.style.display = 'block';
+        bulkFields.style.display = 'none';
+      } else {
+        bulkBtn.classList.add('active');
+        singleBtn.classList.remove('active');
+        singleFields.style.display = 'none';
+        bulkFields.style.display = 'block';
+      }
     }
 
-    async function submitUidPass() {
-      const server = document.getElementById('uid-server').value;
-      const uid = document.getElementById('uid-input').value.trim();
-      const password = document.getElementById('password-input').value.trim();
-      const bulkText = document.getElementById('uid-bulk').value.trim();
+    // Set Button Loading State
+    function setButtonLoading(btn, isLoading, defaultText) {
+      btn.disabled = isLoading;
+      const textSpan = btn.querySelector('.btn-text');
+      if (isLoading) {
+        textSpan.innerHTML = `<div class="spinner"></div> Processing...`;
+      } else {
+        textSpan.innerHTML = defaultText;
+      }
+    }
+
+    // Show Feedback Box with Animation
+    function showFeedback(boxId, type, message) {
+      const box = document.getElementById(boxId);
+      box.className = `feedback-box ${type}`;
+      box.style.display = 'flex';
+
+      let iconHtml = '';
+      if (type === 'success') {
+        iconHtml = `
+          <svg width="22" height="22" viewBox="0 0 52 52">
+            <circle class="checkmark__circle" cx="26" cy="26" r="23"/>
+            <path class="checkmark__check" fill="none" stroke="currentColor" stroke-width="4" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        `;
+      } else {
+        iconHtml = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        `;
+      }
+
+      box.innerHTML = `${iconHtml} <div>${message}</div>`;
+    }
+
+    // Submit UID + Password Form
+    async function submitUidPassForm() {
+      const btn = document.getElementById('btn-submit-up');
+      const isBulk = document.getElementById('btn-up-bulk').classList.contains('active');
+      const server = document.getElementById('up-server').value;
+      const feedbackId = 'up-feedback';
 
       let items = [];
-      if (bulkText) {
+      if (isBulk) {
+        const rawJson = document.getElementById('up-bulk-json').value.trim();
         try {
-          items = JSON.parse(bulkText);
+          items = JSON.parse(rawJson);
+          if (!Array.isArray(items)) throw new Error('Input must be a JSON array of objects.');
         } catch (e) {
-          showResult('Invalid JSON format in bulk input.', true);
+          showFeedback(feedbackId, 'error', 'Invalid JSON syntax. Please provide a valid array.');
           return;
         }
-      } else if (uid && password) {
-        items = [{ uid, password }];
       } else {
-        showResult('Please enter UID & Password or bulk JSON.', true);
-        return;
+        const uid = document.getElementById('up-uid').value.trim();
+        const password = document.getElementById('up-password').value.trim();
+        if (!uid || !password) {
+          showFeedback(feedbackId, 'error', 'Please enter both UID and Password.');
+          return;
+        }
+        items = [{ uid, password }];
       }
 
+      setButtonLoading(btn, true, 'Authenticate & Save');
       try {
         const res = await fetch('/api/submit_uidpass', {
           method: 'POST',
@@ -192,33 +868,54 @@
             items
           })
         });
+
         const data = await res.json();
-        showResult(`Added: ${data.added} | Duplicate: ${data.duplicate} | Invalid: ${data.invalid}`);
+        setButtonLoading(btn, false, 'Authenticate & Save');
+
+        if (data.invalid > 0 && data.added === 0 && data.duplicate === 0) {
+          showFeedback(feedbackId, 'error', `Failed: API returned invalid credentials (${data.invalid} invalid).`);
+        } else {
+          showFeedback(
+            feedbackId,
+            'success',
+            `Processed successfully:<br>• Added: ${data.added} • Duplicate: ${data.duplicate} • Invalid: ${data.invalid}`
+          );
+          // Update server badge
+          document.getElementById('current-server-badge').innerText = server;
+        }
       } catch (err) {
-        showResult('Submission failed: ' + err.message, true);
+        setButtonLoading(btn, false, 'Authenticate & Save');
+        showFeedback(feedbackId, 'error', `Network error: ${err.message}`);
       }
     }
 
-    async function submitToken() {
-      const server = document.getElementById('token-server').value;
-      const token = document.getElementById('token-input').value.trim();
-      const bulkText = document.getElementById('token-bulk').value.trim();
+    // Submit Access Token Form
+    async function submitTokenForm() {
+      const btn = document.getElementById('btn-submit-at');
+      const isBulk = document.getElementById('btn-at-bulk').classList.contains('active');
+      const server = document.getElementById('at-server').value;
+      const feedbackId = 'at-feedback';
 
       let items = [];
-      if (bulkText) {
+      if (isBulk) {
+        const rawJson = document.getElementById('at-bulk-json').value.trim();
         try {
-          items = JSON.parse(bulkText);
+          items = JSON.parse(rawJson);
+          if (!Array.isArray(items)) throw new Error('Input must be a JSON array of objects.');
         } catch (e) {
-          showResult('Invalid JSON format in bulk input.', true);
+          showFeedback(feedbackId, 'error', 'Invalid JSON syntax. Please provide a valid array.');
           return;
         }
-      } else if (token) {
-        items = [{ access_token: token }];
       } else {
-        showResult('Please enter Access Token or bulk JSON.', true);
-        return;
+        const token = document.getElementById('at-token').value.trim();
+        if (!token) {
+          showFeedback(feedbackId, 'error', 'Please enter an Access Token.');
+          return;
+        }
+        items = [{ access_token: token }];
       }
 
+      setButtonLoading(btn, true, 'Verify & Submit');
       try {
         const res = await fetch('/api/submit_token', {
           method: 'POST',
@@ -229,18 +926,32 @@
             items
           })
         });
+
         const data = await res.json();
-        showResult(`Added: ${data.added} | Duplicate: ${data.duplicate} | Invalid: ${data.invalid}`);
+        setButtonLoading(btn, false, 'Verify & Submit');
+
+        if (data.invalid > 0 && data.added === 0 && data.duplicate === 0) {
+          showFeedback(feedbackId, 'error', `Failed: Token rejected (${data.invalid} invalid).`);
+        } else {
+          showFeedback(
+            feedbackId,
+            'success',
+            `Token verified:<br>• Added: ${data.added} • Duplicate: ${data.duplicate} • Invalid: ${data.invalid}`
+          );
+          document.getElementById('current-server-badge').innerText = server;
+        }
       } catch (err) {
-        showResult('Submission failed: ' + err.message, true);
+        setButtonLoading(btn, false, 'Verify & Submit');
+        showFeedback(feedbackId, 'error', `Network error: ${err.message}`);
       }
     }
 
-    async function checkLikeApi() {
-      const resBox = document.getElementById('like-result');
-      resBox.classList.remove('hidden');
-      resBox.innerText = 'Checking unlock status...';
+    // Check Like API Status
+    async function checkLikeStatus() {
+      const btn = document.getElementById('btn-check-like');
+      const feedbackBox = document.getElementById('like-feedback');
 
+      setButtonLoading(btn, true, 'Verify My Level & Unlock');
       try {
         const res = await fetch('/api/get_like_api', {
           method: 'POST',
@@ -249,19 +960,58 @@
             initData: tg?.initData || ''
           })
         });
+
         const data = await res.json();
+        setButtonLoading(btn, false, 'Verify My Level & Unlock');
+
+        feedbackBox.style.display = 'flex';
         if (data.unlocked) {
-          resBox.className = 'text-xs p-3 rounded-xl bg-emerald-950 border border-emerald-800 text-emerald-200';
-          resBox.innerHTML = `<strong>Access Granted!</strong><br>Like API URL: <a href="${data.like_api_url}" target="_blank" class="underline text-cyan-300">${data.like_api_url}</a>`;
+          feedbackBox.className = 'feedback-box success';
+          feedbackBox.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge unlocked">UNLOCKED (Level 8+)</span>
+            </div>
+            <p style="margin-top: 8px; font-size: 12px; color: var(--text-main);">Your personal Like API endpoint:</p>
+            <div class="url-copy-box">
+              <span id="like-url-text">${data.like_api_url}</span>
+            </div>
+          `;
         } else {
-          resBox.className = 'text-xs p-3 rounded-xl bg-amber-950 border border-amber-800 text-amber-200';
-          resBox.innerText = data.message;
+          feedbackBox.className = 'feedback-box error';
+          feedbackBox.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge locked">LOCKED</span>
+            </div>
+            <p style="margin-top: 6px; font-size: 12px;">${data.message || 'Upload an access token or UID+Password with account level 8+ to unlock.'}</p>
+          `;
         }
       } catch (err) {
-        resBox.className = 'text-xs p-3 rounded-xl bg-red-950 border border-red-800 text-red-200';
-        resBox.innerText = 'Error checking unlock status: ' + err.message;
+        setButtonLoading(btn, false, 'Verify My Level & Unlock');
+        showFeedback('like-feedback', 'error', `Network error: ${err.message}`);
       }
     }
+
+    // Fetch Stats / Servers
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        if (data.servers && Array.isArray(data.servers)) {
+          const upSelect = document.getElementById('up-server');
+          const atSelect = document.getElementById('at-server');
+          upSelect.innerHTML = data.servers.map(s => `<option value="${s}">${s}</option>`).join('');
+          atSelect.innerHTML = data.servers.map(s => `<option value="${s}">${s}</option>`).join('');
+          if (data.servers[0]) {
+            document.getElementById('current-server-badge').innerText = data.servers[0];
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch stats/servers:', e);
+      }
+    }
+
+    // Initial load
+    fetchStats();
   </script>
 </body>
 </html>
