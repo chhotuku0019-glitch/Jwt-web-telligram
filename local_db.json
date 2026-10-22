@@ -1,7 +1,7 @@
 {
   "config": {
-    "bot_token": "YOUR_BOT_TOKEN_HERE",
-    "owner_telegram_id": 123456789,
+    "bot_token": "",
+    "owner_telegram_id": null,
     "uid_pass_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
     "access_token_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
     "servers": [

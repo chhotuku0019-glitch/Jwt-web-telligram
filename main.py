@@ -4,19 +4,22 @@ import time
 import hmac
 import hashlib
 import requests
+import asyncio
+import threading
 from datetime import datetime
+from urllib.parse import parse_qsl
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from apscheduler.schedulers.background import BackgroundScheduler
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, MenuButtonWebApp
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 app = Flask(__name__, template_folder='.')
 
-# Fallback Configuration Constants
+# Fallback Configuration Constants — Generic with NO hardcoded secrets
 DEFAULT_CONFIG = {
-    "bot_token": os.environ.get("TELEGRAM_BOT_TOKEN", "8316096516:AAH6K3fhlPVPmlgHmW-DQlNkJ7Lv1fbJmpg),
-    "owner_telegram_id": int(os.environ.get("OWNER_TELEGRAM_ID", "6506909666")),
+    "bot_token": "",
+    "owner_telegram_id": None,
     "uid_pass_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
     "access_token_api_url": "https://ff-jwt-gen-api.lovable.app/api/public/token",
     "servers": ["IND", "BD", "BR", "NA", "SG"],
@@ -31,7 +34,6 @@ DEFAULT_CONFIG = {
 }
 
 # In-memory / MongoDB wrapper state
-# In production or when mongo is configured, we use pymongo. Otherwise fallback to local dict/json store.
 DB_CLIENT = None
 DB = None
 USE_MONGO = False
@@ -39,30 +41,32 @@ USE_MONGO = False
 try:
     from pymongo import MongoClient
     mongo_uri = DEFAULT_CONFIG["mongo_uri"]
-    client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
+    client = MongoClient(mongo_uri, serverSelectionTimeoutMS=1500)
     client.admin.command('ping')
     DB_CLIENT = client
     DB = client.telegram_bot_db
     USE_MONGO = True
     print("Connected to MongoDB successfully.")
 except Exception as e:
-    print(f"MongoDB connection failed ({e}), falling back to local JSON file database.")
+    print(f"MongoDB connection notice ({e}), using local JSON file store (local_db.json).")
     USE_MONGO = False
 
-# Local fallback DB file
 FALLBACK_DB_FILE = "local_db.json"
 
 def load_local_db():
     if not os.path.exists(FALLBACK_DB_FILE):
         initial = {
             "config": DEFAULT_CONFIG,
-            "entries": [] # {id, telegram_id, server, type, uid, password, access_token, account_id, token, timestamp}
+            "entries": []
         }
         with open(FALLBACK_DB_FILE, "w") as f:
             json.dump(initial, f, indent=2)
         return initial
-    with open(FALLBACK_DB_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(FALLBACK_DB_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {"config": DEFAULT_CONFIG, "entries": []}
 
 def save_local_db(data):
     with open(FALLBACK_DB_FILE, "w") as f:
@@ -70,63 +74,83 @@ def save_local_db(data):
 
 def get_config():
     if USE_MONGO:
-        cfg = DB.config.find_one({"_id": "settings"})
-        if not cfg:
-            # Initialize with default
-            cfg = DEFAULT_CONFIG.copy()
-            cfg["_id"] = "settings"
-            DB.config.insert_one(cfg)
-        return cfg
-    else:
-        ldb = load_local_db()
-        return ldb.get("config", DEFAULT_CONFIG)
+        try:
+            cfg = DB.config.find_one({"_id": "settings"})
+            if not cfg:
+                cfg = DEFAULT_CONFIG.copy()
+                cfg["_id"] = "settings"
+                DB.config.insert_one(cfg)
+            return cfg
+        except Exception:
+            pass
+    ldb = load_local_db()
+    return ldb.get("config", DEFAULT_CONFIG)
 
 def update_config(new_config):
     if USE_MONGO:
-        new_config["_id"] = "settings"
-        DB.config.replace_one({"_id": "settings"}, new_config, upsert=True)
-    else:
-        ldb = load_local_db()
-        ldb["config"] = new_config
-        save_local_db(ldb)
+        try:
+            new_config["_id"] = "settings"
+            DB.config.replace_one({"_id": "settings"}, new_config, upsert=True)
+            return
+        except Exception:
+            pass
+    ldb = load_local_db()
+    ldb["config"] = new_config
+    save_local_db(ldb)
 
 def get_all_entries():
     if USE_MONGO:
-        return list(DB.entries.find({}, {"_id": 0}))
-    else:
-        ldb = load_local_db()
-        return ldb.get("entries", [])
+        try:
+            return list(DB.entries.find({}, {"_id": 0}))
+        except Exception:
+            pass
+    ldb = load_local_db()
+    return ldb.get("entries", [])
 
 def save_entry_db(entry):
     if USE_MONGO:
-        DB.entries.update_one(
-            {"account_id": entry["account_id"]},
-            {"$set": entry},
-            upsert=True
-        )
-    else:
-        ldb = load_local_db()
-        entries = ldb.get("entries", [])
-        updated = False
-        for i, e in enumerate(entries):
-            if e.get("account_id") == entry["account_id"]:
-                entries[i] = entry
-                updated = True
-                break
-        if not updated:
-            entries.append(entry)
-        ldb["entries"] = entries
-        save_local_db(ldb)
+        try:
+            DB.entries.update_one(
+                {"account_id": entry["account_id"]},
+                {"$set": entry},
+                upsert=True
+            )
+            return
+        except Exception:
+            pass
+    ldb = load_local_db()
+    entries = ldb.get("entries", [])
+    updated = False
+    for i, e in enumerate(entries):
+        if e.get("account_id") == entry["account_id"]:
+            entries[i] = entry
+            updated = True
+            break
+    if not updated:
+        entries.append(entry)
+    ldb["entries"] = entries
+    save_local_db(ldb)
 
 def delete_entry_db(account_id):
     if USE_MONGO:
-        DB.entries.delete_one({"account_id": account_id})
-    else:
-        ldb = load_local_db()
-        ldb["entries"] = [e for e in ldb.get("entries", []) if e.get("account_id") != account_id]
-        save_local_db(ldb)
+        try:
+            DB.entries.delete_one({"account_id": account_id})
+            return
+        except Exception:
+            pass
+    ldb = load_local_db()
+    ldb["entries"] = [e for e in ldb.get("entries", []) if e.get("account_id") != account_id]
+    save_local_db(ldb)
 
-# Small-caps helper function
+# Helper: Mask sensitive tokens
+def mask_token(token: str) -> str:
+    if not token:
+        return ""
+    if len(token) <= 8:
+        return "••••••••"
+    return "••••••••" + token[-4:]
+
+# Helper: Small-caps Unicode translation
 def to_small_caps(text: str) -> str:
     normal = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     small = "ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡxʏᴢ"
@@ -135,10 +159,6 @@ def to_small_caps(text: str) -> str:
 
 # Global Deduplication & Processing Logic
 def process_submission(telegram_id, server, submission_type, raw_data_list):
-    """
-    submission_type: 'uid_pass' or 'access_token'
-    raw_data_list: list of dicts with {'uid', 'password'} or {'access_token'}
-    """
     config = get_config()
     added_count = 0
     dup_count = 0
@@ -182,7 +202,6 @@ def process_submission(telegram_id, server, submission_type, raw_data_list):
             try:
                 res = requests.get(api_url, timeout=10)
                 data = res.json()
-                # Extract account_id from response or decoded JWT payload
                 account_id = str(
                     data.get('account_id') or 
                     data.get('account_uid') or 
@@ -204,17 +223,13 @@ def process_submission(telegram_id, server, submission_type, raw_data_list):
             invalid_count += 1
             continue
 
-        # Check existing entries in DB
         all_entries = get_all_entries()
         existing = next((e for e in all_entries if e.get('account_id') == account_id), None)
 
         if existing:
-            # Dedupe rule: uid_pass wins over access_token
             if submission_type == 'uid_pass' and existing.get('type') == 'access_token':
-                # Delete existing access_token entry and insert uid_pass
                 delete_entry_db(account_id)
             elif existing.get('type') == submission_type:
-                # Exact duplicate entry
                 dup_count += 1
                 continue
 
@@ -236,6 +251,21 @@ def process_submission(telegram_id, server, submission_type, raw_data_list):
 
     return {"added": added_count, "duplicate": dup_count, "invalid": invalid_count, "results": results}
 
+# Helper: Forward message to Owner
+def notify_owner(message_text: str):
+    config = get_config()
+    owner_id = config.get('owner_telegram_id')
+    bot_token = config.get('bot_token')
+    if owner_id and bot_token:
+        try:
+            requests.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": owner_id, "text": to_small_caps(message_text)},
+                timeout=10
+            )
+        except Exception as e:
+            print(f"Owner notification failed: {e}")
+
 # Background Timer for Token Refresh & GitHub Sync
 def background_timer_job():
     print(f"[{datetime.utcnow()}] Running background token refresh & GitHub sync timer...")
@@ -243,7 +273,6 @@ def background_timer_job():
     entries = get_all_entries()
     updated_tokens_count = 0
 
-    # 1. Refresh tokens
     for entry in entries:
         try:
             if entry.get('type') == 'uid_pass' and entry.get('uid') and entry.get('password'):
@@ -264,11 +293,10 @@ def background_timer_job():
                     entry['token'] = new_token
                     save_entry_db(entry)
                     updated_tokens_count += 1
-            time.sleep(0.5) # small delay to avoid rate limit
+            time.sleep(0.5)
         except Exception as e:
             print(f"Error refreshing token for {entry.get('account_id')}: {e}")
 
-    # 2. Group by server and upload to GitHub if GitHub configured
     if config.get('github_token') and config.get('github_repo'):
         refreshed_entries = get_all_entries()
         servers = config.get('servers', [])
@@ -286,7 +314,6 @@ def background_timer_job():
                 continue
 
             file_content_json = json.dumps(server_entries, indent=2)
-            # Push to GitHub API
             try:
                 repo = config['github_repo']
                 branch = config['github_branch']
@@ -295,7 +322,6 @@ def background_timer_job():
                     "Authorization": f"Bearer {config['github_token']}",
                     "Accept": "application/vnd.github+json"
                 }
-                # Get existing file sha if exists
                 get_res = requests.get(url, headers=headers, params={"ref": branch})
                 sha = None
                 if get_res.status_code == 200:
@@ -316,43 +342,35 @@ def background_timer_job():
             except Exception as e:
                 print(f"GitHub sync error for server {server}: {e}")
 
-    # 3. Send notification to owner
-    owner_id = config.get('owner_telegram_id')
-    bot_token = config.get('bot_token')
-    if owner_id and bot_token and bot_token != "YOUR_BOT_TOKEN_HERE":
-        msg = to_small_caps(f"timer run completed.\nrefreshed {updated_tokens_count} tokens across servers.")
-        try:
-            requests.post(
-                f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                json={"chat_id": owner_id, "text": msg}
-            )
-        except Exception as e:
-            print(f"Failed to notify owner: {e}")
+    notify_owner(f"timer run completed.\nrefreshed {updated_tokens_count} tokens across servers.")
 
-# Initialize Scheduler
 scheduler = BackgroundScheduler()
 scheduler.start()
 
 def reschedule_timer():
     config = get_config()
     interval = int(config.get('timer_interval_hours', 6))
-    # Remove existing jobs if any
     for job in scheduler.get_jobs():
         job.remove()
     scheduler.add_job(background_timer_job, 'interval', hours=interval)
 
 reschedule_timer()
 
-# --- Telegram Bot Handlers ---
+# --- Telegram Bot Lifecycle & Handlers ---
+BOT_THREAD = None
+BOT_STATUS = "stopped"
+BOT_STOP_EVENT = threading.Event()
+BOT_LOCK = threading.Lock()
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    config = get_config()
+    host = request.host_url.rstrip('/') if request else "https://your-domain.com"
     
     keyboard = [
         [InlineKeyboardButton(to_small_caps("uid + password"), callback_data="flow_uid_pass")],
         [InlineKeyboardButton(to_small_caps("access token"), callback_data="flow_access_token")],
         [InlineKeyboardButton(to_small_caps("get like api"), callback_data="flow_get_like_api")],
-        [InlineKeyboardButton(to_small_caps("open mini app"), web_app=WebAppInfo(url=request.host_url.rstrip('/') + "/"))]
+        [InlineKeyboardButton(to_small_caps("open mini app"), web_app=WebAppInfo(url=host + "/"))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -396,17 +414,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             to_small_caps(f"server {server} selected.\nnow send your access token (or json list):")
         )
     elif data == "flow_get_like_api":
-        # Check if user has unlocked (submitted valid account level >= 8)
         user_id = query.from_user.id
         all_entries = get_all_entries()
         user_entries = [e for e in all_entries if e.get('telegram_id') == user_id]
         
-        # Validate account level from token or API if needed
         unlocked = False
         for e in user_entries:
-            # TODO: Map account level from e.g. e.get('level') or decoded JWT payload level.
-            # For demonstration, if entry exists, we check if account level >= 8 or allow unlock if level field exists.
-            level = e.get('level', 8) # Defaulting to 8 if level present or simulated
+            # TODO: Map account level from API response or decoded JWT payload (e.g. e.get('level')).
+            # Developer should confirm exact account level field name from the JWT response payload.
+            level = e.get('level', 8)
             if level >= 8:
                 unlocked = True
                 break
@@ -425,14 +441,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     flow = context.user_data.get('pending_flow')
     server = context.user_data.get('server', 'IND')
-    config = get_config()
 
     if not flow:
         await update.message.reply_text(to_small_caps("please use /start or click buttons to begin."))
         return
 
     raw_items = []
-    # Check if text is JSON
     try:
         parsed = json.loads(text)
         if isinstance(parsed, list):
@@ -440,7 +454,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif isinstance(parsed, dict):
             raw_items = [parsed]
     except Exception:
-        # Parse single entry
         if flow == 'uid_pass':
             parts = text.split(':')
             if len(parts) >= 2:
@@ -453,8 +466,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     res = process_submission(user_id, server, flow, raw_items)
-    
-    # Clear flow
     context.user_data['pending_flow'] = None
 
     reply_msg = to_small_caps(
@@ -463,54 +474,100 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(reply_msg)
 
     # Forward raw submitted data to owner privately
-    owner_id = config.get('owner_telegram_id')
-    bot_token = config.get('bot_token')
-    if owner_id and bot_token and bot_token != "YOUR_BOT_TOKEN_HERE":
-        forward_text = to_small_caps(f"new submission from user {user_id} (server {server}, type {flow}):\n{text}")
+    notify_owner(f"new submission from user {user_id} (server {server}, type {flow}):\n{text}")
+
+def bot_thread_worker(token: str):
+    global BOT_STATUS
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    async def runner():
+        global BOT_STATUS
         try:
-            requests.post(
-                f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                json={"chat_id": owner_id, "text": forward_text}
-            )
+            application = ApplicationBuilder().token(token).build()
+            application.add_handler(CommandHandler("start", start_command))
+            application.add_handler(CallbackQueryHandler(button_callback))
+            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+            
+            await application.initialize()
+            await application.start()
+            await application.updater.start_polling(drop_pending_updates=True)
+            BOT_STATUS = "running"
+            print(f"[Telegram Bot] Polling started with token {mask_token(token)}")
+            
+            while not BOT_STOP_EVENT.is_set():
+                await asyncio.sleep(1)
+                
+            print("[Telegram Bot] Shutting down updater...")
+            await application.updater.stop()
+            await application.stop()
+            await application.shutdown()
+            BOT_STATUS = "stopped"
+            print("[Telegram Bot] Shutdown complete.")
         except Exception as e:
-            print(f"Failed to forward to owner: {e}")
+            print(f"[Telegram Bot] Runtime error: {e}")
+            BOT_STATUS = f"error: {str(e)}"
 
-# Telegram bot starter thread
-def run_telegram_bot():
-    config = get_config()
-    token = config.get('bot_token')
-    if not token or token == "YOUR_BOT_TOKEN_HERE":
-        print("Telegram bot token not configured. Bot skipped.")
-        return
-
-    application = ApplicationBuilder().token(token).build()
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CallbackQueryHandler(button_callback))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    print("Starting Telegram Bot polling...")
-    application.run_polling(drop_pending_updates=True)
-
-# --- Flask Web Routes & Mini App Authentication ---
-
-def verify_telegram_init_data(init_data: str, bot_token: str) -> bool:
-    """
-    Verify Telegram WebApp initData hash according to Telegram docs.
-    """
     try:
-        from urllib.parse import parse_qsl
+        loop.run_until_complete(runner())
+    finally:
+        loop.close()
+
+def stop_bot_if_running():
+    global BOT_THREAD, BOT_STATUS
+    if BOT_THREAD and BOT_THREAD.is_alive():
+        print("[Telegram Bot] Stopping existing bot thread...")
+        BOT_STOP_EVENT.set()
+        BOT_THREAD.join(timeout=4)
+        BOT_STATUS = "stopped"
+
+def start_or_restart_bot():
+    global BOT_THREAD, BOT_STATUS
+    with BOT_LOCK:
+        config = get_config()
+        token = (config.get('bot_token') or "").strip()
+        
+        stop_bot_if_running()
+        BOT_STOP_EVENT.clear()
+        
+        if not token:
+            BOT_STATUS = "stopped"
+            print("[Telegram Bot] Token is empty. Bot remains off.")
+            return False, "Bot is uninitialized. Please provide a Bot Token in the Setup section."
+            
+        print(f"[Telegram Bot] Launching bot thread with token {mask_token(token)}...")
+        BOT_THREAD = threading.Thread(target=bot_thread_worker, args=(token,), daemon=True)
+        BOT_THREAD.start()
+        return True, "Bot initialized and starting polling..."
+
+# --- WebApp Verification & Admin Context Security ---
+
+def verify_telegram_init_data(init_data: str, bot_token: str) -> dict:
+    """
+    Verify Telegram WebApp initData hash per official algorithm.
+    Returns user dict if valid, else None.
+    """
+    if not init_data or not bot_token:
+        return None
+    try:
         parsed = dict(parse_qsl(init_data))
         received_hash = parsed.pop('hash', None)
         if not received_hash:
-            return False
+            return None
         
         data_check_string = '\n'.join([f"{k}={v}" for k, v in sorted(parsed.items())])
         secret_key = hmac.new(b"WebAppData", bot_token.encode('utf-8'), hashlib.sha256).digest()
         calculated_hash = hmac.new(secret_key, data_check_string.encode('utf-8'), hashlib.sha256).hexdigest()
-        return hmac.compare_digest(calculated_hash, received_hash)
+        
+        if hmac.compare_digest(calculated_hash, received_hash):
+            if 'user' in parsed:
+                return json.loads(parsed['user'])
+        return None
     except Exception as e:
         print(f"initData verification error: {e}")
-        return False
+        return None
+
+# --- Flask Routes ---
 
 @app.route('/')
 def index():
@@ -524,23 +581,119 @@ def admin_page():
 def ping():
     return "OK", 200
 
+# Setup & Credentials API (Runtime configuration)
+@app.route('/api/setup', methods=['GET', 'POST'])
+def api_setup():
+    config = get_config()
+    if request.method == 'GET':
+        return jsonify({
+            "is_configured": bool(config.get("bot_token")),
+            "bot_token_masked": mask_token(config.get("bot_token", "")),
+            "owner_telegram_id": config.get("owner_telegram_id") or "",
+            "bot_status": BOT_STATUS
+        })
+    else:
+        data = request.json or {}
+        new_token = (data.get("bot_token") or "").strip()
+        owner_id = data.get("owner_telegram_id")
+        admin_pw = data.get("admin_password")
+        
+        token_updated = False
+        # Only update token if provided and not masked placeholder
+        if new_token and not new_token.startswith("••"):
+            config["bot_token"] = new_token
+            token_updated = True
+            
+        if owner_id is not None and str(owner_id).strip() != "":
+            try:
+                config["owner_telegram_id"] = int(owner_id)
+            except ValueError:
+                return jsonify({"error": "Admin Telegram ID must be a numeric value"}), 400
+                
+        if admin_pw:
+            config["admin_password_hash"] = generate_password_hash(admin_pw)
+            
+        update_config(config)
+        
+        started, msg = start_or_restart_bot()
+        return jsonify({
+            "status": "success",
+            "message": msg,
+            "bot_status": BOT_STATUS,
+            "bot_token_masked": mask_token(config.get("bot_token", ""))
+        })
+
+@app.route('/api/bot_action', methods=['POST'])
+def api_bot_action():
+    data = request.json or {}
+    action = data.get('action')
+    if action == 'restart':
+        started, msg = start_or_restart_bot()
+        return jsonify({"status": "success", "message": msg, "bot_status": BOT_STATUS})
+    elif action == 'stop':
+        stop_bot_if_running()
+        return jsonify({"status": "success", "message": "Bot stopped", "bot_status": BOT_STATUS})
+    return jsonify({"error": "Unknown action"}), 400
+
+@app.route('/api/admin_check_auth', methods=['POST'])
+def admin_check_auth():
+    """
+    Checks if user is accessing admin inside Telegram Mini App as the owner.
+    """
+    data = request.json or {}
+    init_data = data.get('initData', '')
+    config = get_config()
+    
+    if init_data and config.get('bot_token'):
+        user_info = verify_telegram_init_data(init_data, config['bot_token'])
+        if user_info:
+            user_id = user_info.get('id')
+            owner_id = config.get('owner_telegram_id')
+            if owner_id and user_id == owner_id:
+                return jsonify({"authorized": True, "is_owner": True, "user_id": user_id})
+            else:
+                return jsonify({
+                    "authorized": False, 
+                    "is_owner": False, 
+                    "error": f"Unauthorized. Admin panel is restricted to Owner ID: {owner_id}."
+                })
+    return jsonify({"authorized": False, "is_owner": False})
+
 @app.route('/api/config', methods=['GET', 'POST'])
 def api_config():
     if request.method == 'GET':
-        config = get_config()
-        # hide sensitive fields or return safe
+        config = get_config().copy()
+        # Never return raw secrets in GET
+        config['bot_token'] = mask_token(config.get('bot_token', ''))
+        config.pop('admin_password_hash', None)
         return jsonify(config)
     else:
-        data = request.json
+        data = request.json or {}
         config = get_config()
+        token_changed = False
+        
         for k, v in data.items():
             if k == 'admin_password' and v:
                 config['admin_password_hash'] = generate_password_hash(v)
+            elif k == 'bot_token':
+                if v and not str(v).startswith("••"):
+                    config['bot_token'] = v
+                    token_changed = True
+            elif k == 'owner_telegram_id' and v:
+                try:
+                    config['owner_telegram_id'] = int(v)
+                except ValueError:
+                    pass
             else:
                 config[k] = v
+                
         update_config(config)
         reschedule_timer()
-        return jsonify({"status": "success"})
+        
+        if token_changed:
+            start_or_restart_bot()
+            
+        return jsonify({"status": "success", "bot_status": BOT_STATUS})
 
 @app.route('/api/stats', methods=['GET'])
 def api_stats():
@@ -558,7 +711,9 @@ def api_stats():
         "uid_pass_count": uid_pass_count,
         "access_token_count": access_token_count,
         "server_counts": server_counts,
-        "servers": config.get('servers', [])
+        "servers": config.get('servers', []),
+        "bot_status": BOT_STATUS,
+        "bot_configured": bool(config.get("bot_token"))
     })
 
 @app.route('/api/backup', methods=['GET'])
@@ -594,13 +749,14 @@ def api_restore():
                 ldb["entries"] = data["entries"]
                 save_local_db(ldb)
         reschedule_timer()
+        start_or_restart_bot()
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 @app.route('/api/admin_login', methods=['POST'])
 def admin_login():
-    data = request.json
+    data = request.json or {}
     password = data.get('password')
     config = get_config()
     if check_password_hash(config.get('admin_password_hash', ''), password):
@@ -609,23 +765,18 @@ def admin_login():
 
 @app.route('/api/submit_uidpass', methods=['POST'])
 def api_submit_uidpass():
-    data = request.json
+    data = request.json or {}
     init_data = data.get('initData', '')
     config = get_config()
     
-    # Optional verification if initData provided
     telegram_id = 12345
     if init_data and config.get('bot_token'):
-        if verify_telegram_init_data(init_data, config['bot_token']):
-            from urllib.parse import parse_qsl
-            import json as j_mod
-            parsed = dict(parse_qsl(init_data))
-            if 'user' in parsed:
-                u_obj = j_mod.loads(parsed['user'])
-                telegram_id = u_obj.get('id', 12345)
+        user_info = verify_telegram_init_data(init_data, config['bot_token'])
+        if user_info:
+            telegram_id = user_info.get('id', 12345)
 
     server = data.get('server', 'IND')
-    items = data.get('items', []) # list of {uid, password} or single {uid, password}
+    items = data.get('items', [])
     if not items and data.get('uid'):
         items = [{"uid": data.get('uid'), "password": data.get('password')}]
 
@@ -634,19 +785,15 @@ def api_submit_uidpass():
 
 @app.route('/api/submit_token', methods=['POST'])
 def api_submit_token():
-    data = request.json
+    data = request.json or {}
     init_data = data.get('initData', '')
     config = get_config()
     
     telegram_id = 12345
     if init_data and config.get('bot_token'):
-        if verify_telegram_init_data(init_data, config['bot_token']):
-            from urllib.parse import parse_qsl
-            import json as j_mod
-            parsed = dict(parse_qsl(init_data))
-            if 'user' in parsed:
-                u_obj = j_mod.loads(parsed['user'])
-                telegram_id = u_obj.get('id', 12345)
+        user_info = verify_telegram_init_data(init_data, config['bot_token'])
+        if user_info:
+            telegram_id = user_info.get('id', 12345)
 
     server = data.get('server', 'IND')
     items = data.get('items', [])
@@ -658,19 +805,15 @@ def api_submit_token():
 
 @app.route('/api/get_like_api', methods=['POST'])
 def api_get_like_api():
-    data = request.json
+    data = request.json or {}
     init_data = data.get('initData', '')
     config = get_config()
     
     telegram_id = 12345
     if init_data and config.get('bot_token'):
-        if verify_telegram_init_data(init_data, config['bot_token']):
-            from urllib.parse import parse_qsl
-            import json as j_mod
-            parsed = dict(parse_qsl(init_data))
-            if 'user' in parsed:
-                u_obj = j_mod.loads(parsed['user'])
-                telegram_id = u_obj.get('id', 12345)
+        user_info = verify_telegram_init_data(init_data, config['bot_token'])
+        if user_info:
+            telegram_id = user_info.get('id', 12345)
 
     entries = get_all_entries()
     user_entries = [e for e in entries if e.get('telegram_id') == telegram_id]
@@ -690,10 +833,13 @@ def api_get_like_api():
         return jsonify({"unlocked": False, "message": "upload an access token or uid+password (account level 8+) to unlock."})
 
 if __name__ == '__main__':
-    # Start Telegram Bot in background thread
-    import threading
-    bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
-    bot_thread.start()
+    # On initial run, check if a bot token was previously configured in DB
+    init_cfg = get_config()
+    if init_cfg.get('bot_token'):
+        print("[Telegram Bot] Found stored bot token. Initializing bot...")
+        start_or_restart_bot()
+    else:
+        print("[Telegram Bot] No bot token configured yet. Starting Web Server only for Setup in /admin.")
 
     # Run Flask app on port 3000 (Render free tier / AI Studio preview)
     app.run(host='0.0.0.0', port=3000, debug=False)
